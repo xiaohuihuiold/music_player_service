@@ -1,4 +1,4 @@
-group 'com.xhhold.flutter.plugin.musicplayerservice'
+group 'com.xhhold.flutter.plugin.music_player_service'
 version '1.0-SNAPSHOT'
 
 buildscript {
@@ -31,7 +31,7 @@ android {
         main.java.srcDirs += 'src/main/kotlin'
     }
     defaultConfig {
-        minSdkVersion 16
+        minSdkVersion 23
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     lintOptions {

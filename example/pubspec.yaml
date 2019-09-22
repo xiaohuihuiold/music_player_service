@@ -19,6 +19,8 @@ dev_dependencies:
 
   music_player_service:
     path: ../
+  music_scanner:
+    git: https://github.com/xiaohuihuiold/music_scanner
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

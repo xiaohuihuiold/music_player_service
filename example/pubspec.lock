@@ -81,6 +81,13 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.1.4"
+  json_annotation:
+    dependency: transitive
+    description:
+      name: json_annotation
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "3.0.0"
   matcher:
     dependency: transitive
     description:
@@ -102,6 +109,15 @@ packages:
       relative: true
     source: path
     version: "1.0.0"
+  music_scanner:
+    dependency: "direct dev"
+    description:
+      path: "."
+      ref: HEAD
+      resolved-ref: "140b6d7e0ff8a5206c302e333818025dffc0cc65"
+      url: "https://github.com/xiaohuihuiold/music_scanner"
+    source: git
+    version: "1.1.0"
   path:
     dependency: transitive
     description:
