@@ -1,0 +1,2 @@
+# music_player_service
+Flutter音乐播放服务插件
