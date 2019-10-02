@@ -47,4 +47,8 @@ class MediaPlayerManager {
 
     }
 
+    fun isPlaying(): Boolean {
+        return mediaPlayer?.isPlaying ?: false
+    }
+
 }

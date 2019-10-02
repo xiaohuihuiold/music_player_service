@@ -161,8 +161,6 @@ class MusicPlayerServicePlugin(private val registrar: Registrar, private val cha
     private fun initMusicList(call: MethodCall, result: Result) {
         val list = call.argument<MutableList<Any?>>("list")
         iMusicPlayerController?.initMusicList(list)
-        iMusicPlayerController?.play(0)
-        iMusicPlayerController?.pause()
         result.success(null)
     }
 }

@@ -7,11 +7,17 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
+import android.os.Build
 import android.os.IBinder
+import android.util.Log
+import android.view.KeyEvent
 import java.io.File
 import java.io.IOException
 
-class PlayerService : Service() {
+class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
 
     /**
      * 控制器binder
@@ -27,6 +33,15 @@ class PlayerService : Service() {
      * 媒体播放管理器
      */
     private var playerManager: MediaPlayerManager = MediaPlayerManager()
+
+    /**
+     * audio manager
+     */
+    private var audioManager: AudioManager? = null
+    /**
+     * 音频焦点
+     */
+    private var audioFocusRequest: AudioFocusRequest? = null
 
     /**
      * 通知广播
@@ -47,6 +62,20 @@ class PlayerService : Service() {
         super.onCreate()
         // 创建通知管理器
         notificationManager = MediaNotificationManager(this)
+        // 创建audio manager
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val audioAttributes: AudioAttributes = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+            // 创建音频焦点
+            audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .setAcceptsDelayedFocusGain(true)
+                    .setAudioAttributes(audioAttributes)
+                    .setOnAudioFocusChangeListener(this)
+                    .build()
+        }
         // 创建广播接收器
         mediaReceiver = MediaBroadcastReceiver()
         val intentFilter = IntentFilter()
@@ -54,6 +83,7 @@ class PlayerService : Service() {
         intentFilter.addAction(MediaNotificationManager.ACTION_PAUSE)
         intentFilter.addAction(MediaNotificationManager.ACTION_PREVIOUS)
         intentFilter.addAction(MediaNotificationManager.ACTION_NEXT)
+        intentFilter.addAction(Intent.ACTION_MEDIA_BUTTON)
         registerReceiver(mediaReceiver, intentFilter)
     }
 
@@ -87,6 +117,30 @@ class PlayerService : Service() {
         return null
     }
 
+
+    override fun onAudioFocusChange(focusChange: Int) {
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                iBinder.pause()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    if (audioFocusRequest != null) {
+                        audioManager?.abandonAudioFocusRequest(audioFocusRequest!!)
+                    }
+                } else {
+                    audioManager?.abandonAudioFocus(this)
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                iBinder.pause()
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+            }
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                iBinder.play(-1)
+            }
+        }
+    }
+
     inner class MusicControllerBinder : IMusicPlayerController.Stub() {
         override fun play(index: Int) {
             if ((musicList?.size ?: 0) == 0) {
@@ -95,18 +149,25 @@ class PlayerService : Service() {
             notificationManager?.play()
             if (index != -1) {
                 currentIndex = index
-                if (currentIndex < 0 || (currentIndex >= (musicList?.size ?: 0))) {
-                    return
-                }
-                val map: MutableMap<*, *> = musicList!![currentIndex] as MutableMap<*, *>
-                notificationManager?.setTitle(map["title"] as String)
-                notificationManager?.setText(map["artist"] as String)
-                notificationManager?.setLargeIcon(loadBitmap(map["albumPath"] as String))
+
             }
             if (currentIndex < 0 || (currentIndex >= (musicList?.size ?: 0))) {
                 return
             }
+            val map: MutableMap<*, *> = musicList!![currentIndex] as MutableMap<*, *>
+            notificationManager?.setTitle(map["title"] as String)
+            notificationManager?.setText(map["artist"] as String)
+            notificationManager?.setSub("")
+            notificationManager?.setLargeIcon(loadBitmap(map["albumPath"] as String))
             playerManager.play((musicList!![currentIndex] as MutableMap<*, *>)["path"] as String)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if (audioFocusRequest != null) {
+                    audioManager?.requestAudioFocus(audioFocusRequest!!)
+                }
+            } else {
+                audioManager?.requestAudioFocus(this@PlayerService, AudioManager.STREAM_MUSIC, AudioManager
+                        .AUDIOFOCUS_GAIN)
+            }
         }
 
         override fun pause() {
@@ -155,6 +216,24 @@ class PlayerService : Service() {
     inner class MediaBroadcastReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
+                Intent.ACTION_MEDIA_BUTTON -> {
+                    val event: KeyEvent? = intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT) as KeyEvent
+                    when (event?.keyCode) {
+                        KeyEvent.KEYCODE_MEDIA_PLAY -> {
+                            if (playerManager.isPlaying()) {
+                                iBinder.pause()
+                            } else {
+                                iBinder.play(-1)
+                            }
+                        }
+                        KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+                            iBinder.previous()
+                        }
+                        KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                            iBinder.next()
+                        }
+                    }
+                }
                 MediaNotificationManager.ACTION_PLAY -> {
                     iBinder.play(-1)
                 }
