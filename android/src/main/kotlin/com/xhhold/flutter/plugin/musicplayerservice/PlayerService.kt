@@ -121,6 +121,7 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
     override fun onAudioFocusChange(focusChange: Int) {
         when (focusChange) {
             AudioManager.AUDIOFOCUS_LOSS -> {
+                // 丢失焦点
                 iBinder.pause()
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     if (audioFocusRequest != null) {
@@ -142,24 +143,31 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
     }
 
     inner class MusicControllerBinder : IMusicPlayerController.Stub() {
+
+        /**
+         * 播放
+         */
         override fun play(index: Int) {
             if ((musicList?.size ?: 0) == 0) {
                 return
             }
             notificationManager?.play()
             if (index != -1) {
+                // 播放被暂停的音乐
                 currentIndex = index
 
             }
             if (currentIndex < 0 || (currentIndex >= (musicList?.size ?: 0))) {
                 return
             }
+            // 根据下标获取要播放的音乐信息
             val map: MutableMap<*, *> = musicList!![currentIndex] as MutableMap<*, *>
             notificationManager?.setTitle(map["title"] as String)
             notificationManager?.setText(map["artist"] as String)
             notificationManager?.setSub("")
             notificationManager?.setLargeIcon(loadBitmap(map["albumPath"] as String))
             playerManager.play((musicList!![currentIndex] as MutableMap<*, *>)["path"] as String)
+            // 获得音频焦点
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 if (audioFocusRequest != null) {
                     audioManager?.requestAudioFocus(audioFocusRequest!!)
@@ -170,6 +178,9 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
             }
         }
 
+        /**
+         * 暂停
+         */
         override fun pause() {
             if ((musicList?.size ?: 0) == 0) {
                 return
@@ -178,6 +189,9 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
             playerManager.pause()
         }
 
+        /**
+         * 上一曲
+         */
         override fun previous() {
             if ((musicList?.size ?: 0) == 0) {
                 return
@@ -189,6 +203,9 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
             play(currentIndex)
         }
 
+        /**
+         * 下一曲
+         */
         override fun next() {
             if ((musicList?.size ?: 0) == 0) {
                 return
@@ -200,10 +217,16 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
             play(currentIndex)
         }
 
+        /**
+         * 设置音乐列表
+         */
         override fun initMusicList(list: MutableList<Any?>?) {
             musicList = list ?: ArrayList()
         }
 
+        /**
+         * 初始化通知信息
+         */
         override fun initNotification(title: String?, text: String?, sub: String?, largeIcon: String?, smallIcon: String?, play: String?, pause: String?, previous: String?, next: String?) {
             notificationManager?.init(title, text, sub, loadBitmap(largeIcon), loadBitmap(smallIcon), loadBitmap(play), loadBitmap(pause), loadBitmap(previous), loadBitmap(next))
         }
@@ -217,6 +240,7 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
                 Intent.ACTION_MEDIA_BUTTON -> {
+                    // 耳机按键监听(暂定)
                     val event: KeyEvent? = intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT) as KeyEvent
                     when (event?.keyCode) {
                         KeyEvent.KEYCODE_MEDIA_PLAY -> {
