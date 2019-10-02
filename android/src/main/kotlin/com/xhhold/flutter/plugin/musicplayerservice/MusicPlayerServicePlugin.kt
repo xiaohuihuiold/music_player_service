@@ -74,6 +74,14 @@ class MusicPlayerServicePlugin(private val registrar: Registrar, private val cha
                 // 判断服务是否运行
                 result.success(isServiceRunning() && isBind)
             }
+            "initNotification" -> {
+                // 初始化通知栏
+                initNotification(call, result)
+            }
+            "initMusicList" -> {
+                // 设置播放列表
+                initMusicList(call, result)
+            }
             else -> {
                 result.notImplemented()
             }
@@ -128,5 +136,33 @@ class MusicPlayerServicePlugin(private val registrar: Registrar, private val cha
             }
         }
         return false
+    }
+
+    /**
+     * 初始化通知管理器
+     */
+    private fun initNotification(call: MethodCall, result: Result) {
+        val title: String? = call.argument<String>("title")
+        val text: String? = call.argument<String>("text")
+        val sub: String? = call.argument<String>("sub")
+        val largeIcon: String? = call.argument<String>("largeIcon")
+        val smallIcon: String? = call.argument<String>("smallIcon")
+        val play: String? = call.argument<String>("play")
+        val pause: String? = call.argument<String>("pause")
+        val previous: String? = call.argument<String>("previous")
+        val next: String? = call.argument<String>("next")
+        iMusicPlayerController?.initNotification(title, text, sub, largeIcon, smallIcon, play, pause, previous, next)
+        result.success(null)
+    }
+
+    /**
+     * 设置播放列表
+     */
+    private fun initMusicList(call: MethodCall, result: Result) {
+        val list = call.argument<MutableList<Any?>>("list")
+        iMusicPlayerController?.initMusicList(list)
+        iMusicPlayerController?.play(0)
+        iMusicPlayerController?.pause()
+        result.success(null)
     }
 }

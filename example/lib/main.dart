@@ -33,6 +33,27 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     MusicPlayerService().addServiceStatusCallback((status) {
       print('服务状态:$status');
+      MusicPlayerService().initNotification(
+        title: 'Example',
+        text: 'music',
+        sub: '测试',
+        largeIcon: 'images/ic_launcher.png',
+        smallIcon: 'images/ic_launcher.png',
+        play: 'images/ic_play_arrow_white_24dp.png',
+        pause: 'images/ic_pause_white_24dp.png',
+        previous: 'images/ic_skip_previous_white_24dp.png',
+        next: 'images/ic_skip_next_white_24dp.png',
+      );
+      MusicPlayerService().initMusicList(
+          List<MusicData>.generate(_musicList?.length ?? 0, (index) {
+        return MusicData(
+          id: _musicList[index].id,
+          title: _musicList[index].title,
+          artist: _musicList[index].artist,
+          albumPath: _musicList[index].albumPath,
+          path: _musicList[index].path,
+        );
+      }));
     });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       MusicScanner.refreshAlbumImagesCache();
