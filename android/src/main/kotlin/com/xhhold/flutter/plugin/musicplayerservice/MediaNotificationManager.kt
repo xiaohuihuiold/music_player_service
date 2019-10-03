@@ -73,6 +73,9 @@ class MediaNotificationManager(private val service: PlayerService) {
         builder?.setVisibility(Notification.VISIBILITY_PUBLIC)
     }
 
+    /**
+     * 初始化通知栏信息
+     */
     fun init(title: String?, text: String?, sub: String?, largeIcon: Bitmap?, smallIcon: Bitmap?, play: Bitmap?, pause: Bitmap?, previous: Bitmap?, next: Bitmap?) {
         builder?.setLargeIcon(largeIcon)
         if (smallIcon != null) {
@@ -99,6 +102,9 @@ class MediaNotificationManager(private val service: PlayerService) {
         updateNotification()
     }
 
+    /**
+     * 播放,显示暂停按钮
+     */
     fun play() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             builder?.setActions(actionPrevious, actionPause, actionNext)
@@ -106,6 +112,9 @@ class MediaNotificationManager(private val service: PlayerService) {
         }
     }
 
+    /**
+     * 暂停,显示播放按钮
+     */
     fun pause() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             builder?.setActions(actionPrevious, actionPlay, actionNext)
@@ -113,11 +122,17 @@ class MediaNotificationManager(private val service: PlayerService) {
         }
     }
 
+    /**
+     * 设置大图
+     */
     fun setLargeIcon(bitmap: Bitmap?) {
         builder?.setLargeIcon(bitmap)
         updateNotification()
     }
 
+    /**
+     * 设置小图
+     */
     fun setSmallIcon(bitmap: Bitmap?) {
         if (bitmap != null) {
             builder?.setSmallIcon(Icon.createWithBitmap(bitmap))
@@ -125,21 +140,33 @@ class MediaNotificationManager(private val service: PlayerService) {
         updateNotification()
     }
 
+    /**
+     * 设置标题
+     */
     fun setTitle(title: String?) {
         builder?.setContentTitle(title)
         updateNotification()
     }
 
+    /**
+     * 设置标题下面的文本
+     */
     fun setText(text: String?) {
         builder?.setContentText(text)
         updateNotification()
     }
 
+    /**
+     * 设置应用名旁边的文字
+     */
     fun setSub(sub: String?) {
         builder?.setSubText(sub)
         updateNotification()
     }
 
+    /**
+     * 更新通知栏
+     */
     private fun updateNotification() {
         service.startForeground(1, builder?.build())
     }

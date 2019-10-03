@@ -45,15 +45,20 @@ class _HomePageState extends State<HomePage> {
         next: 'images/ic_skip_next_white_24dp.png',
       );
       MusicPlayerService().initMusicList(
-          List<MusicData>.generate(_musicList?.length ?? 0, (index) {
-        return MusicData(
-          id: _musicList[index].id,
-          title: _musicList[index].title,
-          artist: _musicList[index].artist,
-          albumPath: _musicList[index].albumPath,
-          path: _musicList[index].path,
-        );
-      }));
+        id: 0,
+        list: List<MusicData>.generate(
+          _musicList?.length ?? 0,
+          (index) {
+            return MusicData(
+              id: _musicList[index].id,
+              title: _musicList[index].title,
+              artist: _musicList[index].artist,
+              albumPath: _musicList[index].albumPath,
+              path: _musicList[index].path,
+            );
+          },
+        ),
+      );
     });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       MusicScanner.refreshAlbumImagesCache();

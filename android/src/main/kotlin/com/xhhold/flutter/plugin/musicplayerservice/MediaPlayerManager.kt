@@ -2,8 +2,7 @@ package com.xhhold.flutter.plugin.musicplayerservice
 
 import android.media.MediaPlayer
 
-class MediaPlayerManager {
-
+class MediaPlayerManager(private val playerService: PlayerService){
     private var mediaPlayer: MediaPlayer? = null
     private var path: String? = null
     private var isPrepared = false
@@ -24,6 +23,8 @@ class MediaPlayerManager {
             isPrepared = true
             mediaPlayer?.start()
         }
+        mediaPlayer?.setOnCompletionListener(playerService)
+        mediaPlayer?.setOnErrorListener(playerService)
     }
 
     /**
@@ -47,6 +48,37 @@ class MediaPlayerManager {
 
     }
 
+    /**
+     * 设置进度
+     */
+    fun seek(time: Int) {
+        mediaPlayer?.seekTo(time)
+    }
+
+    /**
+     * 获取音频id
+     */
+    fun getId(): Int {
+        return mediaPlayer?.audioSessionId ?: 0
+    }
+
+    /**
+     * 获取总长度
+     */
+    fun getDuration(): Int {
+        return mediaPlayer?.duration ?: 0
+    }
+
+    /**
+     * 获取当前位置
+     */
+    fun getPosition(): Int {
+        return mediaPlayer?.currentPosition ?: 0
+    }
+
+    /**
+     * 获取是否正在播放
+     */
     fun isPlaying(): Boolean {
         return mediaPlayer?.isPlaying ?: false
     }

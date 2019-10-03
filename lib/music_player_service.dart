@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 
 /// 服务状态
@@ -13,6 +14,31 @@ enum ServiceStatus {
 
 typedef OnServiceStatusCallback = void Function(ServiceStatus status);
 
+/// 播放顺序枚举
+enum PlayMode {
+  INV, // 顺序
+  SEQ, // 逆序
+  RAN, // 随机
+  LOOP, // 单曲循环
+  ONCE // 播放一次
+}
+
+/// player回调
+abstract class MediaPlayerCallback {
+  void onPlay(int musicListId, int musicId);
+
+  void onPause(int musicListId, int musicId);
+
+  void onPrevious(int musicListId, int musicId);
+
+  void onNext(int musicListId, int musicId);
+
+  void onStop(int musicListId, int musicId);
+
+  void onCompleted(int musicListId, int musicId);
+}
+
+/// 音乐数据类
 class MusicData {
   final int id;
 
@@ -47,6 +73,9 @@ class MusicPlayerService {
   /// 服务状态回调列表
   List<OnServiceStatusCallback> _onServiceStatusCallbacks = List();
 
+  /// 播放器回调
+  List<MediaPlayerCallback> _onMediaPlayerCallbacks = List();
+
   MusicPlayerService._internal() {
     _channel.setMethodCallHandler(onMethodCall);
   }
@@ -67,6 +96,42 @@ class MusicPlayerService {
           if (callback != null) {
             callback(ServiceStatus.DISCONNECTED);
           }
+        });
+        break;
+      case 'onPlay':
+        _onMediaPlayerCallbacks?.forEach((callback) {
+          callback?.onPlay(
+              call.arguments["musicListId"], call.arguments["musicId"]);
+        });
+        break;
+      case 'onPause':
+        _onMediaPlayerCallbacks?.forEach((callback) {
+          callback?.onPause(
+              call.arguments["musicListId"], call.arguments["musicId"]);
+        });
+        break;
+      case 'onPrevious':
+        _onMediaPlayerCallbacks?.forEach((callback) {
+          callback?.onPrevious(
+              call.arguments["musicListId"], call.arguments["musicId"]);
+        });
+        break;
+      case 'onNext':
+        _onMediaPlayerCallbacks?.forEach((callback) {
+          callback?.onNext(
+              call.arguments["musicListId"], call.arguments["musicId"]);
+        });
+        break;
+      case 'onStop':
+        _onMediaPlayerCallbacks?.forEach((callback) {
+          callback?.onStop(
+              call.arguments["musicListId"], call.arguments["musicId"]);
+        });
+        break;
+      case 'onCompleted':
+        _onMediaPlayerCallbacks?.forEach((callback) {
+          callback?.onCompleted(
+              call.arguments["musicListId"], call.arguments["musicId"]);
         });
         break;
     }
@@ -90,15 +155,15 @@ class MusicPlayerService {
 
   /// 初始化通知
   Future<Null> initNotification({
-    String title,
-    String text,
-    String sub,
-    String largeIcon,
-    String smallIcon,
-    String play,
-    String pause,
-    String previous,
-    String next,
+    @required String title,
+    @required String text,
+    @required String sub,
+    @required String largeIcon,
+    @required String smallIcon,
+    @required String play,
+    @required String pause,
+    @required String previous,
+    @required String next,
   }) async {
     return await _channel.invokeMethod('initNotification', {
       'title': title,
@@ -114,8 +179,12 @@ class MusicPlayerService {
   }
 
   /// 设置播放列表
-  Future<Null> initMusicList(List<MusicData> list) async {
+  Future<Null> initMusicList({
+    @required int id,
+    @required List<MusicData> list,
+  }) async {
     return await _channel.invokeMethod('initMusicList', {
+      'id': id,
       'list': List<Map>.generate(list.length, (index) {
         return {
           'id': list[index].id,
@@ -126,6 +195,99 @@ class MusicPlayerService {
         };
       }),
     });
+  }
+
+  /// 播放
+  Future<Null> play({int index}) async {
+    return await _channel.invokeMethod('play', {'index': index});
+  }
+
+  /// 暂停
+  Future<Null> pause() async {
+    return await _channel.invokeMethod('pause');
+  }
+
+  /// 上一曲
+  Future<Null> previous() async {
+    return await _channel.invokeMethod('previous');
+  }
+
+  /// 下一曲
+  Future<Null> next() async {
+    return await _channel.invokeMethod('next');
+  }
+
+  /// 停止
+  Future<Null> stop() async {
+    return await _channel.invokeMethod('stop');
+  }
+
+  /// 跳转
+  Future<Null> seek({int time}) async {
+    return await _channel.invokeMethod('seek', {'time': time});
+  }
+
+  Future<int> getMediaPlayerId() async {
+    return await _channel.invokeMethod('getMediaPlayerId');
+  }
+
+  Future<int> getDuration() async {
+    return await _channel.invokeMethod('getDuration');
+  }
+
+  Future<int> getPosition() async {
+    return await _channel.invokeMethod('getPosition');
+  }
+
+  Future<bool> isPlaying() async {
+    return await _channel.invokeMethod('isPlaying');
+  }
+
+  Future<int> getMusicListId() async {
+    return await _channel.invokeMethod('getMusicListId');
+  }
+
+  Future<int> getMusicId() async {
+    return await _channel.invokeMethod('getMusicId');
+  }
+
+  Future<PlayMode> getMusicMode() async {
+    int mode = await _channel.invokeMethod('getMusicMode');
+    switch (mode) {
+      case 1:
+        return PlayMode.INV;
+      case 2:
+        return PlayMode.SEQ;
+      case 3:
+        return PlayMode.RAN;
+      case 4:
+        return PlayMode.LOOP;
+      case 5:
+        return PlayMode.ONCE;
+    }
+    return null;
+  }
+
+  Future<Null> setMusicMode(PlayMode mode) async {
+    int m = 1;
+    switch (mode) {
+      case PlayMode.INV:
+        m = 1;
+        break;
+      case PlayMode.SEQ:
+        m = 2;
+        break;
+      case PlayMode.RAN:
+        m = 3;
+        break;
+      case PlayMode.LOOP:
+        m = 4;
+        break;
+      case PlayMode.ONCE:
+        m = 5;
+        break;
+    }
+    return _channel.invokeMethod('setMusicMode', {'mode': m});
   }
 
   /// 添加服务状态回调
@@ -139,5 +301,18 @@ class MusicPlayerService {
   /// 移除服务状态回调
   void removeServiceStatusCallback(OnServiceStatusCallback callback) {
     _onServiceStatusCallbacks.remove(callback);
+  }
+
+  /// 添加media回调
+  void addMediaPlayerCallback(MediaPlayerCallback callback) {
+    if (_onMediaPlayerCallbacks.contains(callback)) {
+      return;
+    }
+    _onMediaPlayerCallbacks.add(callback);
+  }
+
+  /// 移除media回调
+  void removeMediaPlayerCallback(MediaPlayerCallback callback) {
+    _onMediaPlayerCallbacks.remove(callback);
   }
 }

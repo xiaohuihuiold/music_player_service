@@ -10,19 +10,37 @@ import android.graphics.BitmapFactory
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.media.MediaPlayer
 import android.os.Build
 import android.os.IBinder
-import android.util.Log
 import android.view.KeyEvent
 import java.io.File
 import java.io.IOException
+import java.util.*
+import kotlin.collections.ArrayList
 
-class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
+/**
+ * 播放模式
+ */
+enum class PlayMode {
+    INV,// 顺序
+    SEQ,// 逆序
+    RAN,// 随机
+    LOOP,// 单曲循环
+    ONCE// 播放一次
+}
+
+class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener, MediaPlayer.OnCompletionListener, MediaPlayer.OnErrorListener {
 
     /**
      * 控制器binder
      */
     private val iBinder = MusicControllerBinder()
+
+    /**
+     * 播放器回调
+     */
+    private var callback: IMusicPlayerCallback? = null
 
     /**
      * 通知管理器
@@ -32,7 +50,7 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
     /**
      * 媒体播放管理器
      */
-    private var playerManager: MediaPlayerManager = MediaPlayerManager()
+    private var playerManager: MediaPlayerManager = MediaPlayerManager(this)
 
     /**
      * audio manager
@@ -54,9 +72,24 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
     private var musicList: MutableList<Any?>? = ArrayList()
 
     /**
+     * 播放列表id
+     */
+    private var musicListId = -1
+
+    /**
+     * 播放id
+     */
+    private var musicId = -1
+
+    /**
      * 当前播放的下标
      */
     private var currentIndex: Int = 0
+
+    /**
+     * 播放模式
+     */
+    private var playMode: PlayMode = PlayMode.INV
 
     override fun onCreate() {
         super.onCreate()
@@ -101,23 +134,8 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
     }
 
     /**
-     * 加载图片
+     * 音频焦点改变
      */
-    private fun loadBitmap(path: String?): Bitmap? {
-        val file: File = File(path)
-        try {
-            return if (file.exists()) {
-                BitmapFactory.decodeFile(path)
-            } else {
-                BitmapFactory.decodeStream(assets.open("flutter_assets/$path"))
-            }
-        } catch (e: IOException) {
-
-        }
-        return null
-    }
-
-
     override fun onAudioFocusChange(focusChange: Int) {
         when (focusChange) {
             AudioManager.AUDIOFOCUS_LOSS -> {
@@ -137,9 +155,45 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
             }
             AudioManager.AUDIOFOCUS_GAIN -> {
-                iBinder.play(-1)
+                iBinder.play(-1, false)
             }
         }
+    }
+
+    /**
+     * 播放完成
+     */
+    override fun onCompletion(mp: MediaPlayer?) {
+        when (playMode) {
+            PlayMode.INV -> {
+                // 顺序
+                iBinder.next()
+            }
+            PlayMode.SEQ -> {
+                // 逆序
+                iBinder.previous()
+            }
+            PlayMode.RAN -> {
+                // 随机
+                iBinder.play(Random().nextInt(musicList?.size ?: 0), false)
+            }
+            PlayMode.LOOP -> {
+                // 单曲循环
+                iBinder.play(-1, false)
+            }
+            PlayMode.ONCE -> {
+                // 播放一次
+                callback?.onCompleted(musicListId, musicId)
+            }
+        }
+    }
+
+    /**
+     * 播放错误
+     */
+    override fun onError(mp: MediaPlayer?, what: Int, extra: Int): Boolean {
+        // TODO: 添加播放错误回调
+        return true
     }
 
     inner class MusicControllerBinder : IMusicPlayerController.Stub() {
@@ -147,11 +201,10 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
         /**
          * 播放
          */
-        override fun play(index: Int) {
+        override fun play(index: Int, program: Boolean) {
             if ((musicList?.size ?: 0) == 0) {
                 return
             }
-            notificationManager?.play()
             if (index != -1) {
                 // 播放被暂停的音乐
                 currentIndex = index
@@ -160,13 +213,21 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
             if (currentIndex < 0 || (currentIndex >= (musicList?.size ?: 0))) {
                 return
             }
+
             // 根据下标获取要播放的音乐信息
             val map: MutableMap<*, *> = musicList!![currentIndex] as MutableMap<*, *>
+            this@PlayerService.musicId = map["id"] as Int
+            // 更新通知栏信息
             notificationManager?.setTitle(map["title"] as String)
             notificationManager?.setText(map["artist"] as String)
             notificationManager?.setSub("")
             notificationManager?.setLargeIcon(loadBitmap(map["albumPath"] as String))
+            notificationManager?.play()
+
             playerManager.play((musicList!![currentIndex] as MutableMap<*, *>)["path"] as String)
+            if (!program) {
+                callback?.onPlay(this@PlayerService.musicListId, this@PlayerService.musicId)
+            }
             // 获得音频焦点
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 if (audioFocusRequest != null) {
@@ -185,6 +246,7 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
             if ((musicList?.size ?: 0) == 0) {
                 return
             }
+            callback?.onPause(this@PlayerService.musicListId, this@PlayerService.musicId)
             notificationManager?.pause()
             playerManager.pause()
         }
@@ -200,7 +262,8 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
             if (currentIndex < 0) {
                 currentIndex = musicList?.size ?: 0 - 1
             }
-            play(currentIndex)
+            callback?.onPrevious(this@PlayerService.musicListId, this@PlayerService.musicId)
+            play(currentIndex, true)
         }
 
         /**
@@ -214,14 +277,127 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
             if (currentIndex >= (musicList?.size ?: 0)) {
                 currentIndex = 0
             }
-            play(currentIndex)
+            callback?.onNext(this@PlayerService.musicListId, this@PlayerService.musicId)
+            play(currentIndex, true)
+        }
+
+        /**
+         * 停止
+         */
+        override fun stop() {
+            callback?.onStop(this@PlayerService.musicListId, this@PlayerService.musicId)
+            playerManager.stop()
+        }
+
+        /**
+         * 设置进度
+         */
+        override fun seek(time: Int) {
+            playerManager.seek(time)
+        }
+
+        /**
+         * 获取音频id
+         */
+        override fun getMediaPlayerId(): Int {
+            return playerManager.getId()
+        }
+
+        /**
+         * 获取总长度
+         */
+        override fun getDuration(): Int {
+            return playerManager.getDuration()
+        }
+
+        /**
+         * 获取当前位置
+         */
+        override fun getPosition(): Int {
+            return playerManager.getPosition()
+        }
+
+        /**
+         * 获取是否正在播放
+         */
+        override fun isPlaying(): Boolean {
+            return playerManager.isPlaying()
+        }
+
+        /**
+         * 获取音乐列表id
+         */
+        override fun getMusicListId(): Int {
+            return this@PlayerService.musicListId
+        }
+
+        /**
+         * 获取音乐id
+         */
+        override fun getMusicId(): Int {
+            return this@PlayerService.musicId
+        }
+
+        /**
+         * 获取播放模式
+         */
+        override fun getMusicMode(): Int {
+            when (playMode) {
+                PlayMode.INV -> {
+                    return 1
+                }
+                PlayMode.SEQ -> {
+                    return 2
+                }
+                PlayMode.RAN -> {
+                    return 3
+                }
+                PlayMode.LOOP -> {
+                    return 4
+                }
+                PlayMode.ONCE -> {
+                    return 5
+                }
+            }
+        }
+
+        /**
+         * 设置播放模式
+         */
+        override fun setMusicMode(mode: Int) {
+            when (mode) {
+                1 -> {
+                    playMode = PlayMode.INV
+                }
+                2 -> {
+                    playMode = PlayMode.SEQ
+                }
+                3 -> {
+                    playMode = PlayMode.RAN
+                }
+                4 -> {
+                    playMode = PlayMode.LOOP
+                }
+                5 -> {
+                    playMode = PlayMode.ONCE
+                }
+            }
+        }
+
+        /**
+         * 添加播放器回调
+         */
+        override fun setPlayerCallback(callback: IMusicPlayerCallback) {
+            this@PlayerService.callback = callback
         }
 
         /**
          * 设置音乐列表
          */
-        override fun initMusicList(list: MutableList<Any?>?) {
+        override fun initMusicList(id: Int, list: MutableList<Any?>?) {
             musicList = list ?: ArrayList()
+            this@PlayerService.musicListId = id
+            currentIndex = 0
         }
 
         /**
@@ -230,12 +406,11 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
         override fun initNotification(title: String?, text: String?, sub: String?, largeIcon: String?, smallIcon: String?, play: String?, pause: String?, previous: String?, next: String?) {
             notificationManager?.init(title, text, sub, loadBitmap(largeIcon), loadBitmap(smallIcon), loadBitmap(play), loadBitmap(pause), loadBitmap(previous), loadBitmap(next))
         }
-
-        override fun basicTypes(anInt: Int, aLong: Long, aBoolean: Boolean, aFloat: Float, aDouble: Double, aString: String?) {
-
-        }
     }
 
+    /**
+     * 广播控制
+     */
     inner class MediaBroadcastReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
@@ -247,7 +422,7 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
                             if (playerManager.isPlaying()) {
                                 iBinder.pause()
                             } else {
-                                iBinder.play(-1)
+                                iBinder.play(-1, false)
                             }
                         }
                         KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
@@ -259,7 +434,7 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
                     }
                 }
                 MediaNotificationManager.ACTION_PLAY -> {
-                    iBinder.play(-1)
+                    iBinder.play(-1, false)
                 }
                 MediaNotificationManager.ACTION_PAUSE -> {
                     iBinder.pause()
@@ -274,4 +449,23 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
         }
 
     }
+
+    /**
+     * 加载图片
+     */
+    private fun loadBitmap(path: String?): Bitmap? {
+        val file: File = File(path)
+        try {
+            return if (file.exists()) {
+                BitmapFactory.decodeFile(path)
+            } else {
+                BitmapFactory.decodeStream(assets.open("flutter_assets/$path"))
+            }
+        } catch (e: IOException) {
+
+        }
+        return null
+    }
+
+
 }
