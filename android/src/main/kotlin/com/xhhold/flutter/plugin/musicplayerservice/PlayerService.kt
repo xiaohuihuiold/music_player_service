@@ -129,8 +129,9 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener, MediaP
     override fun onUnbind(intent: Intent?): Boolean = true
 
     override fun onDestroy() {
-        super.onDestroy()
+        playerManager.stop()
         unregisterReceiver(mediaReceiver)
+        super.onDestroy()
     }
 
     /**
@@ -246,9 +247,9 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener, MediaP
             if ((musicList?.size ?: 0) == 0) {
                 return
             }
-            callback?.onPause(this@PlayerService.musicListId, this@PlayerService.musicId)
             notificationManager?.pause()
             playerManager.pause()
+            callback?.onPause(this@PlayerService.musicListId, this@PlayerService.musicId)
         }
 
         /**
@@ -262,8 +263,8 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener, MediaP
             if (currentIndex < 0) {
                 currentIndex = musicList?.size ?: 0 - 1
             }
-            callback?.onPrevious(this@PlayerService.musicListId, this@PlayerService.musicId)
             play(currentIndex, true)
+            callback?.onPrevious(this@PlayerService.musicListId, this@PlayerService.musicId)
         }
 
         /**
@@ -277,8 +278,8 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener, MediaP
             if (currentIndex >= (musicList?.size ?: 0)) {
                 currentIndex = 0
             }
-            callback?.onNext(this@PlayerService.musicListId, this@PlayerService.musicId)
             play(currentIndex, true)
+            callback?.onNext(this@PlayerService.musicListId, this@PlayerService.musicId)
         }
 
         /**

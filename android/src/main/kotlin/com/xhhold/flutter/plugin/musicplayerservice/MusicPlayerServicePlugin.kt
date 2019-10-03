@@ -211,7 +211,7 @@ class MusicPlayerServicePlugin(private val registrar: Registrar, private val cha
 
     private fun play(call: MethodCall, result: Result) {
         val index = call.argument<Int>("index")
-        iMusicPlayerController?.play(index ?: -1, true)
+        iMusicPlayerController?.play(index ?: -1, false)
         result.success(null)
     }
 
