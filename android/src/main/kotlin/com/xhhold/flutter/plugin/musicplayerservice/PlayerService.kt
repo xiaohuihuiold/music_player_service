@@ -7,12 +7,11 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.media.AudioAttributes
-import android.media.AudioFocusRequest
-import android.media.AudioManager
-import android.media.MediaPlayer
+import android.media.*
+import android.media.session.MediaSession
 import android.os.Build
 import android.os.IBinder
+import android.service.media.MediaBrowserService
 import android.view.KeyEvent
 import java.io.File
 import java.io.IOException
@@ -47,6 +46,10 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener, MediaP
      */
     private var notificationManager: MediaNotificationManager? = null
 
+    /**
+     * MediaSession
+     */
+    private var mediaSession: MediaSession? = null
     /**
      * 媒体播放管理器
      */
@@ -95,6 +98,7 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener, MediaP
         super.onCreate()
         // 创建通知管理器
         notificationManager = MediaNotificationManager(this)
+        mediaSession = MediaSession(this, "PlayerService")
         // 创建audio manager
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -224,6 +228,11 @@ class PlayerService : Service(), AudioManager.OnAudioFocusChangeListener, MediaP
             notificationManager?.setSub("")
             notificationManager?.setLargeIcon(loadBitmap(map["albumPath"] as String))
             notificationManager?.play()
+            mediaSession?.setMetadata(MediaMetadata.Builder()
+                    .putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, loadBitmap(map["albumPath"] as String))
+                    .putBitmap(MediaMetadata.METADATA_KEY_ART, loadBitmap(map["albumPath"] as String))
+                    .putBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON, loadBitmap(map["albumPath"] as String))
+                    .build())
 
             playerManager.play((musicList!![currentIndex] as MutableMap<*, *>)["path"] as String)
             if (!program) {

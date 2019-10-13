@@ -40,8 +40,8 @@ class _HomePageState extends State<HomePage>
   void initState() {
     super.initState();
     _timer = Timer.periodic(Duration(milliseconds: 200), (_) async {
-      int duration = await MusicPlayerService().getDuration();
-      int position = await MusicPlayerService().getPosition();
+      int duration = await MusicPlayerService().getDuration() ?? 0;
+      int position = await MusicPlayerService().getPosition() ?? 0;
       if (duration == 0) {
         setState(() {
           _progress = 0;
